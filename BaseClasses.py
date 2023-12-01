@@ -431,6 +431,7 @@ class MultiWorld():
             self.state.collect(item, location.event, location)
 
         logging.debug('Placed %s at %s', item, location)
+        print(f'Placed {item} at {location}')
 
     def get_entrances(self, player: Optional[int] = None) -> Iterable[Entrance]:
         if player is not None:
@@ -748,6 +749,8 @@ class CollectionState():
         return self.prog_items[player][item]
 
     def collect(self, item: Item, event: bool = False, location: Optional[Location] = None) -> bool:
+        # print(f"Placing {item.name} at {location.name if location is not None else 'None'}")
+
         if location:
             self.locations_checked.add(location)
 
@@ -1015,6 +1018,7 @@ class Location:
     def place_locked_item(self, item: Item):
         if self.item:
             raise Exception(f"Location {self} already filled.")
+        print(f"Placing {item.name} at {self.name}")
         self.item = item
         item.location = self
         self.event = item.advancement

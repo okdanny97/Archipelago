@@ -1,0 +1,2 @@
+peewee>=3.17.0
+pmrseedgen @ https://github.com/okdanny97/PMR-SeedGenerator/archive/refs/tags/archipelago-0.1.zip
