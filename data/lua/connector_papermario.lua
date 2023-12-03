@@ -10,22 +10,22 @@ local nodes = {
 	['MAC_00/ShopItemD'] = nil,
 	['MAC_00/ShopItemE'] = nil,
 	['MAC_00/ShopItemF'] = nil,
-	['MAC_01/ShopBadgeA'] = nil,
-	['MAC_01/ShopBadgeB'] = nil,
-	['MAC_01/ShopBadgeC'] = nil,
-	['MAC_01/ShopBadgeD'] = nil,
-	['MAC_01/ShopBadgeE'] = nil,
-	['MAC_01/ShopBadgeF'] = nil,
-	['MAC_01/ShopBadgeG'] = nil,
-	['MAC_01/ShopBadgeH'] = nil,
-	['MAC_01/ShopBadgeI'] = nil,
-	['MAC_01/ShopBadgeJ'] = nil,
-	['MAC_01/ShopBadgeK'] = nil,
-	['MAC_01/ShopBadgeL'] = nil,
-	['MAC_01/ShopBadgeM'] = nil,
-	['MAC_01/ShopBadgeN'] = nil,
-	['MAC_01/ShopBadgeO'] = nil,
-	['MAC_01/ShopBadgeP'] = nil,
+	['MAC_01/ShopBadgeA'] = 0x680,
+	['MAC_01/ShopBadgeB'] = 0x681,
+	['MAC_01/ShopBadgeC'] = 0x682,
+	['MAC_01/ShopBadgeD'] = 0x683,
+	['MAC_01/ShopBadgeE'] = 0x684,
+	['MAC_01/ShopBadgeF'] = 0x685,
+	['MAC_01/ShopBadgeG'] = 0x686,
+	['MAC_01/ShopBadgeH'] = 0x687,
+	['MAC_01/ShopBadgeI'] = 0x688,
+	['MAC_01/ShopBadgeJ'] = 0x689,
+	['MAC_01/ShopBadgeK'] = 0x68A,
+	['MAC_01/ShopBadgeL'] = 0x68B,
+	['MAC_01/ShopBadgeM'] = 0x68C,
+	['MAC_01/ShopBadgeN'] = 0x68D,
+	['MAC_01/ShopBadgeO'] = 0x68E,
+	['MAC_01/ShopBadgeP'] = 0x68F,
 	['MAC_04/ShopItemA'] = nil,
 	['MAC_04/ShopItemB'] = nil,
 	['MAC_04/ShopItemC'] = nil,
@@ -745,6 +745,15 @@ while true do
 	-- 	end
 	-- end
     local memcache = {}
+
+    -- give ultra boots and hammer
+    -- mainmemory.write_s8(SAVE_DATA + 0x40, 2)
+    -- mainmemory.write_s8(SAVE_DATA + 0x40 + 0x1, 2)
+
+    -- console.log('current hammer = ', mainmemory.read_s8(SAVE_DATA + 0x40 + 0x1))
+
+    -- CURRENT PLAYERDATA EXISTS AT 0x8010F290 (see symbol_addrs.txt)
+
 	for nodeid, index in pairs(nodes) do
     -- for nodeid, index in pairs({test=0x55}) do
             -- console.log(nodeid, addr);
