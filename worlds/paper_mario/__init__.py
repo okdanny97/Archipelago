@@ -11,6 +11,7 @@ from pmrseedgen.models.MarioInventory import MarioInventory
 from pmrseedgen.models.options.OptionSet import OptionSet
 from pmrseedgen.rando_modules.logic import find_available_nodes, _depth_first_search
 from pmrseedgen.random_seed import RandomSeed
+from pmrseedgen.randomizer import write_data_to_rom
 from yaml import SafeLoader
 
 import settings
@@ -70,6 +71,7 @@ class PaperMarioWorld(World):
         self.seed = None
         self.graph = None
         self.graph_base = None
+        self.rando_settings = None
 
     def generate_early(self) -> None:
         with open("/home/dpa/dev/Archipelago/worlds/paper_mario/default.yaml", "r", encoding="utf-8") as file:
@@ -81,6 +83,7 @@ class PaperMarioWorld(World):
             self.graph_base = generate(None, None)
             self.seed.generate(self.graph_base)
             self.graph = enrich_graph_data(deepcopy(self.graph_base))
+            self.rando_settings = rando_settings
 
 
     def pre_fill(self) -> None:
@@ -93,7 +96,7 @@ class PaperMarioWorld(World):
 
             self.multiworld.push_precollected(self.create_item(partner))
 
-        self.multiworld.get_location(location_to_name_table['KKJ_25/0'], self.player).place_locked_item(self.create_item('Victory'))
+        # self.multiworld.get_location(location_to_name_table['KKJ_25/0'], self.player).place_locked_item(self.create_item('Victory'))
 
     def create_regions(self) -> None:
         nodes = self.seed.placed_items
@@ -327,3 +330,33 @@ class PaperMarioWorld(World):
                 break
 
         return False
+
+    def generate_output(self, output_directory: str) -> None:
+        for location in self.multiworld.get_filled_locations(self.player):
+            rando_id = location_table[location.name].identifier
+
+
+            for node in self.seed.placed_items:
+                if node.identifier == rando_id:
+                    print(f'Putting {location.item.name} in {rando_id}')
+                    node.current_item = Item.select().where(Item.item_name == location.item.name)
+                    break
+
+        write_data_to_rom(
+            target_modfile='/home/dpa/Documents/Paper Mario Rando Test.z64',
+            options=self.rando_settings,
+            placed_items=self.seed.placed_items,
+            placed_blocks=self.seed.placed_blocks,
+            entrance_list=self.seed.entrance_list,
+            enemy_stats=self.seed.enemy_stats,
+            battle_formations=self.seed.battle_formations,
+            move_costs=self.seed.move_costs,
+            itemhints=self.seed.itemhints,
+            coin_palette_data=self.seed.coin_palette.data,
+            coin_palette_targets=self.seed.coin_palette.targets,
+            coin_palette_crcs=self.seed.coin_palette.crcs,
+            palette_data=self.seed.palette_data,
+            quiz_data=self.seed.quiz_list,
+            music_list=self.seed.music_list,
+            seed_id=self.seed.seed_hash
+        )

@@ -36,7 +36,7 @@ locations = Node.select().where(True)
 # res = cur.execute('select node.*, item.item_name as item_name, maparea.verbose_name as map_area_name from node join item on node.vanilla_item_id=item.id join maparea on node.map_area_id=maparea.id')
 # res = res.fetchall()
 
-location_table: Dict[str, LocationDict] = {}
+location_table: Dict[str, Node] = {}
 location_to_name_table: Dict[str, str] = {}
 for location in locations:
     name = f"({location.identifier[:3]}) {location.map_area.name if location.map_area is not None else ''} {location.vanilla_item.item_name if location.vanilla_item is not None else ''}"
