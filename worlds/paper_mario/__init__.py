@@ -96,6 +96,13 @@ class PaperMarioWorld(World):
 
             self.multiworld.push_precollected(self.create_item(partner))
 
+        # todo: always_peekaboo?
+        if self.rando_settings.always_ispy:
+            self.multiworld.push_item(self.multiworld.get_location(location_to_name_table['MAC_01/GiftA'], self.player), self.create_item('ISpy'))
+
+        if self.rando_settings.always_speedyspin:
+            self.multiworld.push_item(self.multiworld.get_location(location_to_name_table['MAC_01/ShopBadgeA'], self.player), self.create_item('SpeedySpin'))
+
         # self.multiworld.get_location(location_to_name_table['KKJ_25/0'], self.player).place_locked_item(self.create_item('Victory'))
 
     def create_regions(self) -> None:

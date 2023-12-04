@@ -40,13 +40,81 @@ local ITEM_NONE = 0x0
 local SAVE_DATA  <const> = 0x0DACC0; -- RDRAM
 local GAME_FLAGS <const> = SAVE_DATA + 0xFB0; -- RDRAM
 
+-- local GAME_STATUS <const> = 0x21BF06 -- RDRAM
+local GAME_STATUS <const> = 0x80074024 -- System Bus
+local CURRENT_SHOP_PTR <const> = GAME_STATUS + 0x144;
+local CURRENT_AREA <const> = GAME_STATUS + 0x086;
+local CURRENT_MAP <const> = GAME_STATUS + 0x08C;
+
+function get_current_shop_addr()
+	return memory.read_u32_be(CURRENT_SHOP_PTR, 'System Bus')
+end
+
+local MAP_AREAS = {
+	['MAC_00'] = {area=1,  map=1},
+	['MAC_04'] = {area=1,  map=5},
+	['HOS_03'] = {area=5,  map=3},
+	['NOK_01'] = {area=6,  map=0},
+	['DRO_01'] = {area=9,  map=0},
+	['OBK_03'] = {area=13, map=2},
+	['JAN_03'] = {area=17, map=3},
+	['SAM_02'] = {area=20, map=1},
+	['KPA_96'] = {area=22, map=33}
+}
+
+local shop_items = {}
+function populate_shop_item(maparea_name, index, node)
+	local maparea = MAP_AREAS[maparea_name]
+	local area = maparea['area']
+	local map = maparea['map']
+	if (shop_items[area] == nil) then
+		shop_items[area] = {}
+	end
+
+	if (shop_items[area][map] == nil) then
+		shop_items[area][map] = {}
+	end
+
+	shop_items[area][map][index] = node
+end
+
+local INDEX_TO_CHAR = {
+	[0] = 'A',
+	[1] = 'B',
+	[2] = 'C',
+	[3] = 'D',
+	[4] = 'E',
+	[5] = 'F'
+}
+
+function populate_maparea_shop_item(maparea_name, index)
+	populate_shop_item(maparea_name, index, maparea_name .. '/ShopItem' .. INDEX_TO_CHAR[index])
+end
+
+function populate_shop_items(maparea_name, num_items)
+	local cur = 0
+	while cur < num_items do
+		populate_maparea_shop_item(maparea_name, cur)
+		cur = cur + 1
+	end
+end
+
+populate_shop_items('MAC_00', 6)
+populate_shop_items('MAC_04', 6) -- Shop Item E was spawned vanilla... hmmm... - CONFIRM
+populate_shop_items('HOS_03', 6)
+populate_shop_items('NOK_01', 6)
+populate_maparea_shop_item('DRO_01', 0) -- A - the other items are considered static items and should not be modified - CONFIRM
+populate_maparea_shop_item('DRO_01', 2) -- C
+populate_maparea_shop_item('DRO_01', 5) -- F
+populate_shop_items('OBK_03', 6)
+populate_shop_items('JAN_03', 6)
+populate_shop_items('SAM_02', 6)
+populate_shop_items('KPA_96', 6)
+
+
+
+
 local nodes = {
-	['MAC_00/ShopItemA'] = nil,
-	['MAC_00/ShopItemB'] = nil,
-	['MAC_00/ShopItemC'] = nil,
-	['MAC_00/ShopItemD'] = nil,
-	['MAC_00/ShopItemE'] = nil,
-	['MAC_00/ShopItemF'] = nil,
 	['MAC_01/ShopBadgeA'] = 0x680,
 	['MAC_01/ShopBadgeB'] = 0x681,
 	['MAC_01/ShopBadgeC'] = 0x682,
@@ -63,19 +131,7 @@ local nodes = {
 	['MAC_01/ShopBadgeN'] = 0x68D,
 	['MAC_01/ShopBadgeO'] = 0x68E,
 	['MAC_01/ShopBadgeP'] = 0x68F,
-	['MAC_04/ShopItemA'] = nil,
-	['MAC_04/ShopItemB'] = nil,
-	['MAC_04/ShopItemC'] = nil,
-	['MAC_04/ShopItemD'] = nil,
-	['MAC_04/ShopItemE'] = nil,
-	['MAC_04/ShopItemF'] = nil,
-	['HOS_03/ShopItemA'] = nil,
-	['HOS_03/ShopItemB'] = nil,
-	['HOS_03/ShopItemC'] = nil,
-	['HOS_03/ShopItemD'] = nil,
-	['HOS_03/ShopItemE'] = nil,
-	['HOS_03/ShopItemF'] = nil,
-	['HOS_06/ShopBadgeA'] = nil,
+	['HOS_06/ShopBadgeA'] = nil, -- merlow
 	['HOS_06/ShopBadgeB'] = nil,
 	['HOS_06/ShopBadgeC'] = nil,
 	['HOS_06/ShopBadgeD'] = nil,
@@ -96,39 +152,7 @@ local nodes = {
 	['HOS_06/ShopRewardD'] = nil,
 	['HOS_06/ShopRewardE'] = nil,
 	['HOS_06/ShopRewardF'] = nil,
-	['NOK_01/ShopItemA'] = nil,
-	['NOK_01/ShopItemB'] = nil,
-	['NOK_01/ShopItemC'] = nil,
-	['NOK_01/ShopItemD'] = nil,
-	['NOK_01/ShopItemE'] = nil,
-	['NOK_01/ShopItemF'] = nil,
-	['DRO_01/ShopItemA'] = nil,
-	['DRO_01/ShopItemC'] = nil,
-	['DRO_01/ShopItemF'] = nil,
-	['OBK_03/ShopItemA'] = nil,
-	['OBK_03/ShopItemB'] = nil,
-	['OBK_03/ShopItemC'] = nil,
-	['OBK_03/ShopItemD'] = nil,
-	['OBK_03/ShopItemE'] = nil,
-	['OBK_03/ShopItemF'] = nil,
-	['JAN_03/ShopItemA'] = nil,
-	['JAN_03/ShopItemB'] = nil,
-	['JAN_03/ShopItemC'] = nil,
-	['JAN_03/ShopItemD'] = nil,
-	['JAN_03/ShopItemE'] = nil,
-	['JAN_03/ShopItemF'] = nil,
-	['SAM_02/ShopItemA'] = nil,
-	['SAM_02/ShopItemB'] = nil,
-	['SAM_02/ShopItemC'] = nil,
-	['SAM_02/ShopItemD'] = nil,
-	['SAM_02/ShopItemE'] = nil,
-	['SAM_02/ShopItemF'] = nil,
-	['KPA_96/ShopItemA'] = nil,
-	['KPA_96/ShopItemB'] = nil,
-	['KPA_96/ShopItemC'] = nil,
-	['KPA_96/ShopItemD'] = nil,
-	['KPA_96/ShopItemE'] = nil,
-	['KPA_96/ShopItemF'] = nil,
+
 	['KMR_00/HiddenPanel'] = 0x056,
 	['KMR_03/HiddenPanel'] = 0x058,
 	['KMR_11/HiddenPanel'] = 0x05A,
@@ -217,7 +241,7 @@ local nodes = {
 	['MAC_00/DojoD'] = nil, -- Fouth Degree Card
 	['MAC_00/DojoE'] = nil, -- Diploma
 	['MAC_01/ItemA'] = 0x0FF,
-	['MAC_01/GiftA'] = 0x102,
+	['MAC_01/GiftA'] = 0x102, -- CONFIRM
 	['MAC_01/GiftB'] = nil, -- Star Piece After giving letter to one of Minh T, Merlon, Postmaster
 	['MAC_01/GiftC'] = nil, -- Star Piece After giving letter to one of Minh T, Merlon, Postmaster
 	['MAC_01/GiftD'] = nil, -- Star Piece After giving letter to one of Minh T, Merlon, Postmaster
@@ -1003,7 +1027,7 @@ function request_handler()
     end
 end
 
-
+local execute_next_frame = nil
 function main() 
 	console.log('starting')
 	while true do
@@ -1025,15 +1049,62 @@ function main()
 			end
 		end
 
+		if (execute_next_frame ~= nil) then
+			execute_next_frame()
+			execute_next_frame = nil
+		end
+
 		coroutine.yield()
 	end
 end
 
-console.log('here!')
+function get_shop_item_node(area, map, index)
+	if shop_items[area] ~= nil then
+		if shop_items[area][map] ~= nil then
+			return shop_items[area][map][index]
+		end
+	end
+
+	return nil
+end
+
+
+local SHOP_DIALOGUE_FUNC = 0x80286534
+event.on_bus_write(function()
+	local previous = memory.read_s32_be(0x80286534, 'System Bus')
+	if (previous == 0) then -- cleared to zero on dialogue
+		local current_shop = get_current_shop_addr()
+		local current_item_index = memory.read_s32_be(current_shop + 0x8, 'System Bus')
+		execute_next_frame = function()
+			local current = memory.read_s32_be(0x80286534, 'System Bus')
+			if (current == 1) then
+				console.log(string.format('bought item %d', current_item_index));
+
+				local current_area = memory.read_s16_be(CURRENT_AREA, 'System Bus')
+				local current_map = memory.read_s16_be(CURRENT_MAP, 'System Bus')
+
+				console.log(current_area, current_map, current_item_index)
+
+				local node = get_shop_item_node(current_area, current_map, current_item_index)
+				if node ~= nil then
+					collect(node)
+				end
+			end
+		end
+
+		
+	end
+end, SHOP_DIALOGUE_FUNC)
+
+
+
 local co = coroutine.create(main)
 local reqs = coroutine.create(request_handler)
 
-event.onframeend(function() coroutine.resume(co); coroutine.resume(reqs); end)
+event.onframeend(function() 
+	coroutine.resume(co); 
+	coroutine.resume(reqs); 
+end)
 
 while true do
 	emu.frameadvance()
