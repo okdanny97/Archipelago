@@ -1,8 +1,45 @@
--- This template lives at `.../Lua/.template.lua`.
+
+local socket = require("socket")
+local json = require("json")
+
+local STATE_NOT_CONNECTED = 0
+local STATE_CONNECTED = 1
+
+local CURRENT_PLAYER_DATA = 0x8010F290 -- System Bus
+local BOOTS_LEVEL_OFFSET = 0x0
+local HAMMER_LEVEL_OFFSET = 0x1
+local COINS_OFFSET = 0xC
+local STAR_PIECES_OFFSET = 0xF
+local PARTNERS_OFFSET = 0x14
 
 
-local SAVE_DATA  <const> = 0x0DACC0;
-local GAME_FLAGS <const> = SAVE_DATA + 0xFB0;
+local PARTNER_NONE = 0x0
+local PARTNER_GOOMBARIO = 0x1
+local PARTNER KOOPER = 0x2
+local PARTNER_BOMBETTE = 0x3
+local PARTNER_PARAKARRY = 0x4
+local PARTNER_GOOMPA = 0x5
+local PARTNER_WATT = 0x6
+local PARTNER_SUSHIE = 0x7
+local PARTNER_LAKILESTER = 0x8
+local PARTNER_BOW = 0x9
+local PARTNER_GOOMBARIA = 0xA
+local PARTNER_TWINK = 0xB
+
+local PARTNER_LEVEL_OFFSET = 0x1
+local PARTNER_UNLOCKED_OFFSET = 0x2
+local SIZEOF_PARTNER_STRUCT = 0x8
+
+local BADGE_INVENTORY =    0x10F344 -- RDRAM
+-- local ITEM_INVENTORY  =    0x10F456 -- RDRAM
+local ITEM_INVENTORY  =    0x10F444 -- RDRAM
+local KEY_ITEM_INVENTORY = 0x356E04 -- RDRAM
+local ITEM_NONE = 0x0
+
+
+local SAVE_DATA  <const> = 0x0DACC0; -- RDRAM
+local GAME_FLAGS <const> = SAVE_DATA + 0xFB0; -- RDRAM
+
 local nodes = {
 	['MAC_00/ShopItemA'] = nil,
 	['MAC_00/ShopItemB'] = nil,
@@ -713,10 +750,6 @@ local nodes = {
 	['OSR_02/HiddenYBlockA'] = 0x66B,
 };
 
--- function diditwork(addr, val) console.log('it worked!!') end
-
--- event.on_bus_write(diditwork, 0x0DBC79);
-
 function getLocation(index) 
     local byteIndex = math.floor(index / 32)
     local bitIndex = (index % 32)
@@ -733,44 +766,275 @@ function is_collected(node)
     return not not collected[node]
 end
 
-while true do
-	-- Code here will run once when the script is loaded, then after each emulated frame.
-	
-	-- if (isFound == false) then
-	-- 	val = mainmemory.readbyte(0x0DBC79);
-	-- 	-- console.log(val)
-	-- 	if (bit.check(val, 5)) then
-	-- 		isFound = true;
-	-- 		console.log('GOT BOX');
-	-- 	end
-	-- end
-    local memcache = {}
+function set_boots_level(level)
+	memory.write_s8(CURRENT_PLAYER_DATA + BOOTS_LEVEL_OFFSET, level, 'System Bus')
+end
 
-    -- give ultra boots and hammer
-    -- mainmemory.write_s8(SAVE_DATA + 0x40, 2)
-    -- mainmemory.write_s8(SAVE_DATA + 0x40 + 0x1, 2)
+function set_hammer_level(level)
+	memory.write_s8(CURRENT_PLAYER_DATA + HAMMER_LEVEL_OFFSET, level, 'System Bus')
+end
 
-    -- console.log('current hammer = ', mainmemory.read_s8(SAVE_DATA + 0x40 + 0x1))
+function get_coin(count)
+	local current = memory.read_s16_be(CURRENT_PLAYER_DATA + COINS_OFFSET, 'System Bus')
+	if (current <= 32767 - count) then -- max s16
+		memory.write_s16_be(CURRENT_PLAYER_DATA + COINS_OFFSET, current + count, 'System Bus')
+	end
+end
 
-    -- CURRENT PLAYERDATA EXISTS AT 0x8010F290 (see symbol_addrs.txt)
+function get_star_pieces(count)
+	local current = memory.read_u8(CURRENT_PLAYER_DATA + STAR_PIECES_OFFSET, 'System Bus')
+	if (current <= 255 - count) then -- max u8
+		memory.write_u8(CURRENT_PLAYER_DATA + STAR_PIECES_OFFSET, current + count, 'System Bus')
+	end
+end
 
-	for nodeid, index in pairs(nodes) do
-    -- for nodeid, index in pairs({test=0x55}) do
-            -- console.log(nodeid, addr);
-        local location = getLocation(index)
-        if (memcache[location['addr']] == nil) then
-            memcache[location['addr']] = mainmemory.read_s32_be(location['addr']);
+function collect_partner(partner_index)
+	memory.write_u8(
+		CURRENT_PLAYER_DATA + PARTNERS_OFFSET + (partner_index * SIZEOF_PARTNER_STRUCT) + PARTNER_UNLOCKED_OFFSET,
+		1,
+		'System Bus'
+	)
+end
+
+function upgrade_partner(partner_index)
+	local current = memory.read_s8(
+		CURRENT_PLAYER_DATA + PARTNERS_OFFSET + (partner_index * SIZEOF_PARTNER_STRUCT) + PARTNER_LEVEL_OFFSET, 
+		'System Bus'
+	)
+	if (current < 127) then -- max s8
+		memory.write_u8(
+			CURRENT_PLAYER_DATA + PARTNERS_OFFSET + (partner_index * SIZEOF_PARTNER_STRUCT) + PARTNER_LEVEL_OFFSET, 
+			current + 1, 
+			'System Bus'
+		)
+	end
+end
+
+function collect_badge(badge_id)
+	local addr = BADGE_INVENTORY
+
+	while true do
+		local current = memory.read_s16_be(addr, 'RDRAM')
+		if (current == ITEM_NONE) then
+			memory.write_s16_be(addr, badge_id, 'RDRAM')
+			break
+		end
+
+		addr = addr + 2 -- s16 is 2 bytes
+	end
+end
+
+function collect_item(item_id)
+	local addr = ITEM_INVENTORY
+
+	-- todo add upper bound by max storage!!!!!
+	while true do
+		local current = memory.read_s16_be(addr, 'RDRAM')
+		if (current == ITEM_NONE) then
+			memory.write_s16_be(addr, item_id, 'RDRAM')
+			break
+		end
+
+		addr = addr + 2 -- s16 is 2 bytes
+	end
+end
+
+function collect_key_item(item_id)
+	local addr = KEY_ITEM_INVENTORY
+
+	-- todo in game tracker
+	while true do
+		local current = memory.read_s16_be(addr, 'RDRAM')
+		if (current == ITEM_NONE) then
+			memory.write_s16_be(addr, item_id, 'RDRAM')
+			break
+		end
+
+		addr = addr + 2 -- s16 is 2 bytes
+	end
+end
+
+local current_state = STATE_NOT_CONNECTED
+
+
+function process_request(req)
+	if (req['req'] == 'coin') then
+		get_coin(1)
+	end
+
+	return { locations=collected }
+end
+
+
+-- Receive data from AP client and send message back
+function send_receive ()
+	-- console.log('waiting for message')
+    local message, err = client_socket:receive()
+	-- console.log('got message', message, err)
+    -- Handle errors
+    if err == "closed" then
+        if current_state == STATE_CONNECTED then
+            print("Connection to client closed")
         end
+        current_state = STATE_NOT_CONNECTED
+        return
+    elseif err == "timeout" then
+        -- unlock()
+        return
+    elseif err ~= nil then
+        -- console.log(err)
+        current_state = STATE_NOT_CONNECTED
+        -- unlock()
+        return
+    end
 
-        -- console.log(nodeid, string.format('%x',location['addr']), location['bit'], )
+    -- Reset timeout timer
+    timeout_timer = 5
 
-        if (bit.check(memcache[location['addr']], location.bit)) then
-            -- console.log('in here?',nodeid)
-            if (not is_collected(nodeid)) then
-                collect(nodeid)
+    -- Process received data
+    if DEBUG then
+        console.log("Received Message ["..emu.framecount().."]: "..'"'..message..'"')
+    end
+
+    if message == "VERSION" then
+        local result, err client_socket:send(tostring(SCRIPT_VERSION).."\n")
+    else
+        local res = {}
+		-- console.log('decoding')
+        local data = json.decode(message)
+		-- console.log('decoded')
+        local failed_guard_response = nil
+        for i, req in ipairs(data) do
+            if failed_guard_response ~= nil then
+                res[i] = failed_guard_response
+            else
+                -- An error is more likely to cause an NLua exception than to return an error here
+                console.log('sending to process_request', req)
+				table.insert(res, process_request(req))
             end
         end
+		console.log('sending', res)
+		client_socket:send(json.encode(res).."\n")
+    end
+end
+
+function queue_push (self, value)
+    self[self.right] = value
+    self.right = self.right + 1
+end
+
+function queue_is_empty (self)
+    return self.right == self.left
+end
+
+function queue_shift (self)
+    value = self[self.left]
+    self[self.left] = nil
+    self.left = self.left + 1
+    return value
+end
+
+function new_queue ()
+    local queue = {left = 1, right = 1}
+    return setmetatable(queue, {__index = {is_empty = queue_is_empty, push = queue_push, shift = queue_shift}})
+end
+
+local message_queue = new_queue()
+
+local timeout_timer = 0
+local message_timer = 0
+local message_interval = 0
+local prev_time = 0
+local current_time = 0
+local message_queue = new_queue()
+
+
+function request_handler()
+	-- console.log('binding to localhost:43055')
+	server, err = socket.bind('*', 43088)
+	console.log('bound')
+	if err ~= nil then
+        -- console.log(err)
+		console.log('returning', err)
+        return
+    end
+
+	while true do
+        current_time = socket.socket.gettime()
+        timeout_timer = timeout_timer - (current_time - prev_time)
+        message_timer = message_timer - (current_time - prev_time)
+        prev_time = current_time
+
+        if message_timer <= 0 and not message_queue:is_empty() then
+            gui.addmessage(message_queue:shift())
+            message_timer = message_interval
+        end
+
+        if current_state == STATE_NOT_CONNECTED then
+			-- console.log('trying to connect?pt1')
+
+            if emu.framecount() % 60 == 0 then
+				console.log('trying to connect?')
+                server:settimeout(2)
+                local client, timeout = server:accept()
+                if timeout == nil then
+                    console.log("Client connected")
+                    current_state = STATE_CONNECTED
+                    client_socket = client
+                    client_socket:settimeout(0)
+                else
+                    console.log("No client found. Trying again...")
+                end
+            end
+        else
+            repeat
+                send_receive()
+				coroutine.yield()
+
+					if timeout_timer <= 0 then
+						-- console.log("Client timed out")
+						-- current_state = STATE_NOT_CONNECTED
+					end
+				until false
+
+        end
+
+        coroutine.yield()
+    end
+end
+
+
+function main() 
+	console.log('starting')
+	while true do
+		local memcache = {}
+
+		for nodeid, index in pairs(nodes) do
+			local location = getLocation(index)
+			if (memcache[location['addr']] == nil) then
+				memcache[location['addr']] = mainmemory.read_s32_be(location['addr']);
+			end
+
+			-- console.log(nodeid, string.format('%x',location['addr']), location['bit'], )
+
+			if (bit.check(memcache[location['addr']], location.bit)) then
+				-- console.log('in here?',nodeid)
+				if (not is_collected(nodeid)) then
+					collect(nodeid)
+				end
+			end
+		end
+
+		coroutine.yield()
 	end
-	
-	emu.frameadvance();
+end
+
+console.log('here!')
+local co = coroutine.create(main)
+local reqs = coroutine.create(request_handler)
+
+event.onframeend(function() coroutine.resume(co); coroutine.resume(reqs); end)
+
+while true do
+	emu.frameadvance()
 end

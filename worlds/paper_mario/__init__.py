@@ -74,7 +74,7 @@ class PaperMarioWorld(World):
         self.rando_settings = None
 
     def generate_early(self) -> None:
-        with open("/home/dpa/dev/Archipelago/worlds/paper_mario/default.yaml", "r", encoding="utf-8") as file:
+        with open("./worlds/paper_mario/default.yaml", "r", encoding="utf-8") as file:
             data = yaml.load(file, Loader=SafeLoader)
             rando_settings = OptionSet()
             rando_settings.update_options(data)
@@ -343,7 +343,7 @@ class PaperMarioWorld(World):
                     break
 
         write_data_to_rom(
-            target_modfile='/home/dpa/Documents/Paper Mario Rando Test.z64',
+            target_modfile='C:/Users/danie/Downloads/base_rando_0.24.2beta(1).z64',
             options=self.rando_settings,
             placed_items=self.seed.placed_items,
             placed_blocks=self.seed.placed_blocks,
